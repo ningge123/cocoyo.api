@@ -1,7 +1,6 @@
 package models
 
 import (
-	"cocoyo/pkg/e"
 	"encoding/json"
 	"github.com/jinzhu/gorm"
 	"time"
@@ -32,7 +31,7 @@ func ScopeLeaf(db *gorm.DB) *gorm.DB  {
 	return db.Where("node_id <> ?", 0)
 }
 
-func GetNodes(all bool, page int, limit int) []*Node {
+func GetNodes(all bool, page, limit int) ([]*Node, error) {
 	var nodes []*Node
 
 	offset := (page - 1) * limit
@@ -47,8 +46,6 @@ func GetNodes(all bool, page int, limit int) []*Node {
 
 	err := chain.Find(&nodes).Error
 
-	e.Throw(err)
-
 	// 对格式进行转化
 	for key, node := range nodes {
 		json.Unmarshal([]byte(node.Settings), &nodes[key].SettingsMap)
@@ -60,5 +57,5 @@ func GetNodes(all bool, page int, limit int) []*Node {
 		}
 	}
 
-	return nodes
+	return nodes, err
 }

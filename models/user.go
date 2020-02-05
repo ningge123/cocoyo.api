@@ -2,6 +2,9 @@ package models
 
 import (
 	"cocoyo/pkg/e"
+	"cocoyo/pkg/util/jwt"
+	"crypto/sha1"
+	"encoding/hex"
 	"github.com/jinzhu/gorm"
 	"time"
 )
@@ -55,10 +58,18 @@ type User struct {
 
 func (u *User) BeforeCreate() (err error)  {
 	var user User
+	db.Where("email = ?", u.Email).First(&user)
+
+	if user.Email != "" {
+		err = e.New(e.WARNING, "邮箱已存在!")
+
+		return
+	}
+
 	db.Where("username = ?", u.Username).First(&user)
 
 	if user.Username != "" {
-		err = e.New("用户名已存在")
+		err = e.New(e.WARNING, "用户名已存在!")
 
 		return
 	}
@@ -66,9 +77,13 @@ func (u *User) BeforeCreate() (err error)  {
 	return nil
 }
 
-
-func (u *User) Create(username string, email string, password string) (err error) {
+func (u *User) Create(username, email, password string) (token string, err error) {
 	now := time.Now()
+
+	hash := sha1.New()
+	hash.Write([]byte(password))
+	cipherStr := hash.Sum(nil)
+	password = hex.EncodeToString(cipherStr)
 
 	u.Username = username
 	u.Email = email
@@ -76,7 +91,17 @@ func (u *User) Create(username string, email string, password string) (err error
 	u.CreatedAt = now
 	u.UpdatedAt = now
 
-	return db.Create(u).Error
+	err = db.Create(u).Error
+
+	if err != nil {
+		return
+	}
+
+	// 发送邮箱 ~
+	// 创建access_token
+	token, err = jwt.GenerateToken(u.Username, u.Password)
+
+	return
 }
 
 func (u *User) ScopeWithoutBanned(db *gorm.DB) *gorm.DB {

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"cocoyo/models"
+	"cocoyo/pkg/e"
 	"github.com/gin-gonic/gin"
 	"strconv"
 )
@@ -13,7 +14,11 @@ func (c *NodeController) Index(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "10"))
 
-	nodes := models.GetNodes(all, page, limit)
+	nodes, err := models.GetNodes(all, page, limit)
+
+	if err != nil {
+		e.New(e.ERROR, err.Error())
+	}
 
 	ctx.JSON(200, gin.H{"data" : nodes})
 }

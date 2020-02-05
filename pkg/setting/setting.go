@@ -1,6 +1,7 @@
 package setting
 
 import (
+	"cocoyo/pkg/e"
 	"fmt"
 	"github.com/go-ini/ini"
 	"log"
@@ -26,10 +27,9 @@ func init() {
 	Cfg, err = ini.Load("conf/app.ini")
 
 	if err != nil {
-		log.Fatalf("Fail to parse 'conf/app.ini': %v", err)
+		e.New(e.ERROR, fmt.Sprintf("Fail to parse 'conf/app.ini': %v", err))
 	}
 
-	fmt.Println(Cfg.GetSection("app"))
 	//LoadBase()
 	//LoadServer()
 	//LoadApp()

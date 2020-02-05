@@ -21,6 +21,7 @@ func InitRouter() *gin.Engine {
 		// 用户
 		var user *controllers.UserController
 		api.GET("/users", user.Index)
+		api.POST("/user/exists", user.Exists)
 		// 注册
 		var auth *controllers.AuthController
 		api.POST("/register", auth.Register)

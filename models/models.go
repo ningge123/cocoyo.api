@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cocoyo/pkg/setting"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
@@ -12,7 +13,13 @@ var db *gorm.DB
 func Setup()  {
 	var err error
 	//db, err := gorm.Open("mysql", "user:password@/dbname?charset=utf8&parseTime=True&loc=Local")
-	db, err = gorm.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&parseTime=True&loc=Local", "homestead", "secret", "192.168.10.10", "cocoyo"))
+	db, err = gorm.Open(
+		setting.Cfg.Section("database").Key("DB_CONNECTION").String(),
+		fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&parseTime=True&loc=Local",
+			setting.Cfg.Section("database").Key("DB_USERNAME").String(),
+			setting.Cfg.Section("database").Key("DB_PASSWORD").String(),
+			setting.Cfg.Section("database").Key("DB_HOST").String() + ":" + setting.Cfg.Section("database").Key("DB_PORT").String(),
+			setting.Cfg.Section("database").Key("DB_DATABASE").String()))
 
 	if err != nil {
 		log.Fatalf("models.Setup err: %v", err)

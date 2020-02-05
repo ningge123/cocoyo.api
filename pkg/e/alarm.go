@@ -1,12 +1,24 @@
 package e
 
 import (
-	"cocoyo/pkg/function"
 	"encoding/json"
 	"fmt"
+	"log"
 	"path/filepath"
 	"runtime"
 	"strings"
+)
+
+// 日志等级
+const (
+	DEBUG     = "DEBUG"
+	INFO      = "INFO"
+	NOTICE    = "NOTICE"
+	WARNING   = "WARNING"
+	ERROR     = "ERROR"
+	CRITICAL  = "CRITICAL"
+	ALERT     = "ALERT"
+	EMERGENCY = "EMERGENCY"
 )
 
 type errorString struct {
@@ -26,16 +38,13 @@ func (e *errorString) Error() string {
 	return e.s
 }
 
-func New(text string) error {
-	alarm("INFO", text)
+func New(level, text string) error {
+	alarm(level, text)
 
 	return &errorString{text}
 }
 
 func alarm(level string, str string) {
-	// 当前时间
-	currentTime := function.GetTimeStr()
-
 	// 定义 文件名、行号、方法名
 	fileName, line, functionName := "?", 0 , "?"
 
@@ -47,21 +56,18 @@ func alarm(level string, str string) {
 	}
 
 	var msg = errorInfo {
-		Time     : currentTime,
-		Alarm    : level,
-		Message  : str,
 		Filename : fileName,
 		Line     : line,
 		Funcname : functionName,
 	}
 
-	jsons, errs := json.Marshal(msg)
-
-	if errs != nil {
-		fmt.Println("json marshal error:", errs)
-	}
+	jsons, _ := json.Marshal(msg)
 
 	errorJsonInfo := string(jsons)
 
-	fmt.Println(errorJsonInfo)
+	if level == ERROR {
+		log.Fatal(fmt.Sprintf("[%s] %s %s", level, str, errorJsonInfo))
+	}
+
+	log.Println(fmt.Sprintf("[%s] %s %s", level, str, errorJsonInfo))
 }
