@@ -1,0 +1,173 @@
+package controllers
+
+import (
+	"cocoyo/models"
+	"cocoyo/pkg/response"
+	"cocoyo/pkg/util"
+	"github.com/gin-gonic/gin"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+type Cloud struct {}
+
+func (cloud *Cloud) Index(ctx *gin.Context)  {
+	var fileMetas []models.Files
+
+	models.ReturnDB().Where("status = ?", 0).Find(&fileMetas)
+
+	ctx.JSON(http.StatusOK, response.Response(fileMetas))
+}
+
+func (cloud *Cloud) Update(ctx *gin.Context) {
+	name := ctx.PostForm("name")
+	hash := ctx.PostForm("hash")
+
+	if name == "" {
+		ctx.JSON(http.StatusOK, response.ParameterError("name is required"))
+
+		return
+	}
+
+	if hash == "" {
+		ctx.JSON(http.StatusOK, response.ParameterError("hash is required"))
+
+		return
+	}
+
+	var fileMeta = models.Files{}
+	bool, _ := models.ReturnDB().Where("sha1 = ?", fileMeta).Where("status = ?", 0).Get(&fileMeta)
+
+	if !bool {
+		ctx.JSON(http.StatusOK, response.ParameterError("file not found"))
+
+		return
+	}
+
+	// 获取文件后缀
+	fileSuffix := filepath.Ext(fileMeta.Location)
+	// 路径
+	path := strings.ReplaceAll(fileMeta.Location, fileMeta.Name, "")
+	newFilePath := path + name + fileSuffix
+	// 修改文件名
+	os.Rename(fileMeta.Location, path + name + fileSuffix)
+
+	fileMeta.Location = newFilePath
+	fileMeta.Name = name + fileSuffix
+
+	models.ReturnDB().ID(fileMeta.Id).Update(&fileMeta)
+
+	ctx.JSON(http.StatusOK, response.Response(fileMeta))
+}
+
+func (cloud *Cloud) Upload(ctx *gin.Context)  {
+	fileHeader, _ := ctx.FormFile("file")
+
+	file, err := fileHeader.Open()
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer file.Close()
+
+	fileMeta := models.Files{
+		Name: fileHeader.Filename,
+		Location: "/storage/upload/" + fileHeader.Filename,
+		CreateAt: time.Now().Format("2006-01-02 15:04:05"),
+		UpdateAt: time.Now().Format("2006-01-02 15:04:05"),
+	}
+
+	// 项目路径
+	project, _ := os.Getwd()
+
+	newFile, err := os.Create(project + fileMeta.Location)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer newFile.Close()
+
+	fileMeta.Size, err = io.Copy(newFile, file)
+	newFile.Seek(0, 0)
+	fileMeta.Sha1, _ = util.FileHash(newFile)
+
+	_, err = models.ReturnDB().Omit("id", "update_at").Insert(&fileMeta)
+
+	if err != nil {
+		panic(err)
+	}
+
+	ctx.JSON(http.StatusOK, response.Response(""))
+}
+
+func (cloud *Cloud) Delete(ctx *gin.Context) {
+	hash := ctx.PostForm("hash")
+
+	if hash == "" {
+		ctx.JSON(http.StatusOK, response.ParameterError("hash is required"))
+
+		return
+	}
+
+	var fileMeta = models.Files{}
+	bool, _ := models.ReturnDB().Where("sha1 = ?", hash).Where("status = ?", 0).Get(&fileMeta)
+
+
+	if ! bool {
+		ctx.JSON(http.StatusOK, response.ParameterError("file not found"))
+
+		return
+	}
+
+	projectPath ,_ := os.Getwd()
+
+	// 物理删除文件
+	err := os.Remove(projectPath + fileMeta.Location)
+
+	if err != nil {
+		panic(err)
+	}
+
+	// 开始删除文件
+	models.ReturnDB().Where("sha1 = ?", hash).Delete(fileMeta)
+
+	ctx.JSON(http.StatusOK, response.SuccessNotContent())
+}
+
+func (cloud *Cloud) Download(ctx *gin.Context) {
+	hash := ctx.Query("hash")
+
+	if hash == "" {
+		ctx.JSON(http.StatusOK, response.ParameterError("hash is required"))
+
+		return
+	}
+
+	var meta models.Files
+	bool, _ := models.ReturnDB().Where("sha1 = ?", hash).Where("status = ?", 0).Get(&meta)
+
+	if ! bool {
+		ctx.JSON(http.StatusOK, response.ParameterError("file not found"))
+
+		return
+	}
+
+	projectPath ,_ := os.Getwd()
+
+	ctx.Header("Content-Disposition", "attachment; filename=\"" + meta.Name + "\"")
+	ctx.Header("Content-Description", "File Transfer")
+	ctx.Header("Content-Type", "application/octet-stream")
+	ctx.Header("Content-Transfer-Encoding", "binary")
+	ctx.Header("Expires", "0")
+	// 如果缓存过期了，会再次和原来的服务器确定是否为最新数据，而不是和中间的proxy
+	ctx.Header("Cache-Control", "must-revalidate")
+	ctx.Header("Pragma", "public")
+	ctx.File(projectPath + meta.Location)
+	//io.Copy(w, file)
+}

@@ -1,29 +1,24 @@
 package main
 
 import (
-	"cocoyo/models"
 	"cocoyo/pkg/e"
 	"cocoyo/pkg/setting"
-	"cocoyo/routers"
+	"cocoyo/routes"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	//"github.com/gin-gonic/gin"
 	"net/http"
 	"time"
 )
 
-func init()  {
-	models.Setup()
-}
-
 func main() {
-	rubMode := setting.Cfg.Section("").Key("RUN_MODE").String()
-	gin.SetMode(rubMode)
+	gin.SetMode(setting.App.Key("RUN_MODE").String())
 
-	router := routers.InitRouter()
+	router := routes.InitRouter()
 
-	httpPort 		:= ":" + setting.Cfg.Section("server").Key("HTTP_PORT").String()
-	readTimeout 	:= setting.Cfg.Section("server").Key("READ_TIMEOUT").MustInt(60)
-	writeTimeout 	:= setting.Cfg.Section("server").Key("WRITE_TIMEOUT").MustInt(60)
+	httpPort 		:=  ":" + setting.LoadServer().Key("HTTP_PORT").String()
+	readTimeout 	:= setting.Server.Key("READ_TIMEOUT").MustInt(60)
+	writeTimeout 	:= setting.Server.Key("WRITE_TIMEOUT").MustInt(60)
 
 	s := &http.Server{
 		Addr:               httpPort,

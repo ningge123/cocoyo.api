@@ -1,11 +1,10 @@
 package e
 
 import (
+	"cocoyo/pkg/util"
 	"encoding/json"
-	"fmt"
 	"log"
-	"path/filepath"
-	"runtime"
+	"runtime/debug"
 	"strings"
 )
 
@@ -21,44 +20,29 @@ const (
 	EMERGENCY = "EMERGENCY"
 )
 
-type errorString struct {
-	s string
-}
-
 type errorInfo struct {
 	Time 		string 	`json:"time"`
 	Alarm 		string 	`json:"alarm"`
 	Message 	string 	`json:"message"`
-	Filename 	string 	`json:"filename"`
-	Line 		int 	`json:"line"`
-	Funcname 	string 	`json:"funcname"`
+	Stack       string  `json:"stack"`
 }
 
-func (e *errorString) Error() string {
-	return e.s
-}
-
-func New(level, text string) error {
+func New(level, text string) {
 	alarm(level, text)
-
-	return &errorString{text}
 }
 
 func alarm(level string, str string) {
-	// 定义 文件名、行号、方法名
-	fileName, line, functionName := "?", 0 , "?"
 
-	pc, fileName, line, ok := runtime.Caller(2)
-	if ok {
-		functionName = runtime.FuncForPC(pc).Name()
-		functionName = filepath.Ext(functionName)
-		functionName = strings.TrimPrefix(functionName, ".")
+	debugStack := ""
+	for _, v := range strings.Split(string(debug.Stack()), "\n") {
+		debugStack += v + " "
 	}
 
 	var msg = errorInfo {
-		Filename : fileName,
-		Line     : line,
-		Funcname : functionName,
+		Time: util.GetTimeStr(),
+		Alarm: level,
+		Message: str,
+		Stack: debugStack,
 	}
 
 	jsons, _ := json.Marshal(msg)
@@ -66,8 +50,10 @@ func alarm(level string, str string) {
 	errorJsonInfo := string(jsons)
 
 	if level == ERROR {
-		log.Fatal(fmt.Sprintf("[%s] %s %s", level, str, errorJsonInfo))
+		log.Printf("[%s] %s %s", level, str, errorJsonInfo)
+
+		return
 	}
 
-	log.Println(fmt.Sprintf("[%s] %s %s", level, str, errorJsonInfo))
+	log.Printf("[%s] %s %s", level, str, errorJsonInfo)
 }

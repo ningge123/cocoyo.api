@@ -4,21 +4,15 @@ import (
 	"cocoyo/pkg/e"
 	"fmt"
 	"github.com/go-ini/ini"
-	"log"
-	"time"
 )
 
 var (
 	Cfg *ini.File
-
-	RunMode string
-
-	HTTPPort int
-	ReadTimeout time.Duration
-	WriteTimeout time.Duration
-
-	PageSize int
-	JwtSecret string
+	App *ini.Section
+	Server *ini.Section
+	Database *ini.Section
+	Filesystem *ini.Section
+	Jwt *ini.Section
 )
 
 func init() {
@@ -30,34 +24,29 @@ func init() {
 		e.New(e.ERROR, fmt.Sprintf("Fail to parse 'conf/app.ini': %v", err))
 	}
 
-	//LoadBase()
-	//LoadServer()
-	//LoadApp()
+	App 		= LoadApp()
+	Server 		= LoadServer()
+	Database 	= LoadDatabase()
+	Filesystem 	= LoadFilesystem()
+	Jwt 		= LoadJwt()
 }
 
-func LoadBase()  {
-	RunMode = Cfg.Section("").Key("RUN_MODE").MustString("debug")
+func LoadApp() *ini.Section {
+	return Cfg.Section("app")
 }
 
-func LoadServer()  {
-	cfg, err := Cfg.GetSection("server")
-
-	if err != nil {
-		log.Fatalf("Fail to get section 'server': %v", err)
-	}
-
-	HTTPPort = cfg.Key("HTTP_PORT").MustInt(8000)
-	ReadTimeout = time.Duration( cfg.Key("READ_TIMEOUT").MustInt(60)) * time.Second
-	WriteTimeout = time.Duration( cfg.Key("WRITE_TIMEOUT").MustInt(60)) * time.Second
+func LoadServer() *ini.Section {
+	return Cfg.Section("server")
 }
 
-func LoadApp()  {
-	cfg, err := Cfg.GetSection("app")
+func LoadDatabase() *ini.Section {
+	return Cfg.Section("database")
+}
 
-	if err != nil {
-		log.Fatalf("Fail to get section 'app': %v", err)
-	}
+func LoadFilesystem() *ini.Section {
+	return Cfg.Section("filesystems")
+}
 
-	JwtSecret =  cfg.Key("JWT_SECRET").MustString("!@)*#)!@U#@*!@!)")
-	PageSize =  cfg.Key("PAGE_SIZE").MustInt(10)
+func LoadJwt() *ini.Section {
+	return Cfg.Section("jwt")
 }
